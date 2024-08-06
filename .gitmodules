@@ -50,3 +50,6 @@
 [submodule "arro3/src"]
 	path = arro3/src
 	url = git@github.com:seera-networks/arro3.git
+[submodule "scipy/src"]
+	path = scipy/src
+	url = git@github.com:seera-networks/scipy.git
