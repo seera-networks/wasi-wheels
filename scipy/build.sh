@@ -5,7 +5,7 @@ if [ ! -e venv ]; then
 fi
 
 . venv/bin/activate
-pip install meson-python click doit pydevtool rich_click
+pip install meson-python click doit pydevtool rich_click cython pythran pybind11
 
 CURRENTDIR=$(pwd)
 TEMPDIR=$(mktemp -d)
@@ -50,7 +50,23 @@ json=$(
   " | tr "'" "\"" | tee -a $TEMPDIR/pywasmcross_env.json
 )
 
-export BUILD_ENV_SCRIPTS_DIR=$TEMPDIR
+# export BUILD_ENV_SCRIPTS_DIR=$TEMPDIR
+export BUILD_ENV_SCRIPTS_DIR=""
 export PATH=$TEMPDIR:$PATH
 
-(cd src && python dev.py build --show-build-log) 
+export CC=$TEMPDIR/cc
+export CXX=$TEMPDIR/c++
+export LD=$TEMPDIR/ld
+export LLD=$TEMPDIR/lld
+export AR=$TEMPDIR/ar
+export GCC=$TEMPDIR/gcc
+export RANLIB=$TEMPDIR/ranlib
+export strip=$TEMPDIR/strip
+export FC=$TEMPDIR/gfortran
+# export CMAKE=$TEMPDIR/cmake
+
+export PKG_CONFIG_PATH=/root/wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot/lib/pkgconfig/
+
+# (cd src && python dev.py build --show-build-log) 
+# (cd src && meson setup --cross-file /workspaces/yakiniku/mods3/wasi.meson.cross ../build .)
+(cd src && ninja -C ../build) 
