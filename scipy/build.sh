@@ -5,7 +5,7 @@ if [ ! -e venv ]; then
 fi
 
 . venv/bin/activate
-pip install meson-python click doit pydevtool rich_click cython pythran pybind11
+pip install numpy==1.26.4 meson-python click doit pydevtool rich_click cython pythran pybind11
 
 CURRENTDIR=$(pwd)
 TEMPDIR=$(mktemp -d)
@@ -30,14 +30,13 @@ ln -s $TEMPDIR/pywasmcross.py $TEMPDIR/install_name_tool
 ln -s $TEMPDIR/pywasmcross.py $TEMPDIR/otool
 
 PYTHONPATH=$(python -c "import sys; print(sys.path + ['$TEMPDIR', '$SYSCONFIG'])")
-echo ${PYTHONPATH}
 json=$(
   cat <<< "
     {
       'pkgname': 'scipy',
-      'cflags': '-I${CROSS_PREFIX}/include/python3.12 -Wno-return-type -DUNDERSCORE_G77 -fvisibility=default',
-      'cxxflags': '-fexceptions -fvisibility=default',
-      'ldflags': '-L${NUMPY_LIB}/core/lib/ -L${NUMPY_LIB}/random/lib/ -fexceptions',
+      'cflags': '-I${CROSS_PREFIX}/include/python3.12 -Wno-return-type -DUNDERSCORE_G77 -fvisibility=hidden -D__EMSCRIPTEN__ -DBOOST_DISABLE_THREADS -D__wasm_exception_handling__ -DPOCKETFFT_NO_MULTITHREADING',
+      'cxxflags': '-fexceptions -fvisibility=hidden',
+      'ldflags': '-L${NUMPY_LIB}/core/lib/ -L${NUMPY_LIB}/random/lib/ -fexceptions /root/repos/wasi-sdk/build/install/share/wasi-sysroot/lib/libf2c.a ${CURRENTDIR}/libstub.a',
       'target_install_dir': '${TARGET_INSTALL_DIR}',
       'builddir': '${CURRENTDIR}/build',
       'PYTHONPATH': ${PYTHONPATH},
@@ -51,6 +50,8 @@ json=$(
 )
 
 # export BUILD_ENV_SCRIPTS_DIR=$TEMPDIR
+export PYTHONPATH=$CROSS_PREFIX/lib/python3.12
+export _PYTHON_SYSCONFIGDATA_NAME=_sysconfigdata__wasi_wasm32-wasi
 export BUILD_ENV_SCRIPTS_DIR=""
 export PATH=$TEMPDIR:$PATH
 
@@ -63,10 +64,16 @@ export GCC=$TEMPDIR/gcc
 export RANLIB=$TEMPDIR/ranlib
 export strip=$TEMPDIR/strip
 export FC=$TEMPDIR/gfortran
-# export CMAKE=$TEMPDIR/cmake
 
-export PKG_CONFIG_PATH=/root/wasi-sdk-24.0-x86_64-linux/share/wasi-sysroot/lib/pkgconfig/
+export PKG_CONFIG_PATH=/root/repos/wasi-sdk/build/install/share/wasi-sysroot/lib/pkgconfig
+
+export F2C_PATH=/root/f2c/src/f2c
+
+cp /workspaces/yakiniku/mods3/wasi-wheels/numpy/src/build/temp.*/libnpymath.a venv/lib/python3.12/site-packages/numpy/core/lib/libnpymath.a
+cp /workspaces/yakiniku/mods3/wasi-wheels/numpy/src/build/temp.*/libnpyrandom.a venv/lib/python3.12/site-packages/numpy/random/lib/libnpyrandom.a
 
 # (cd src && python dev.py build --show-build-log) 
-# (cd src && meson setup --cross-file /workspaces/yakiniku/mods3/wasi.meson.cross ../build .)
+(cd src && meson setup --cross-file /workspaces/yakiniku/mods3/wasi.meson.cross --prefix ${TARGET_INSTALL_DIR} ../build .)
+# (cd src && meson setup --reconfigure --cross-file /workspaces/yakiniku/mods3/wasi.meson.cross ../build .)
 (cd src && ninja -C ../build) 
+(cd src && meson install -C ../build --only-changed)
